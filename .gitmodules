@@ -1,0 +1,3 @@
+[submodule "parker-hannifin-binary-communication"]
+	path = parker-hannifin-binary-communication
+	url = https://github.com/UBC-GSRC/parker-hannifin-binary-communication.git
