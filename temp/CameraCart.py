@@ -5,10 +5,8 @@ Description: This module defines the CameraCart class, which provides simple abs
 """
 from Network import Axis
 from Network import Controller
-import cart_control
 from BinaryCommunication import BinaryCommunication
 import time
-import wmi
 import subprocess
 import ESP32SerialController
 
@@ -37,14 +35,14 @@ class CameraCart:
         # The conversion factor to get between encoder position and actual position scaled
         self.encoder_scale_factor = 0.0034
 
-        self.esp32 = ESP32SerialController.ESP32SerialController('COM7')
-        self.sensor_offset_mm = 778.5 # mm from the bedrock of the flume
+        self.esp32 = ESP32SerialController.ESP32SerialController('COM3')
+        self.sensor_offset_mm = 794.5 # mm from the bedrock of the flume
 
     def capture_images_wireless(self):
         return self.esp32.trigger_camera()
 
     def get_water_level(self):
-        return self.sensor_offset_mm - self.esp32.get_distance()
+        return round(self.sensor_offset_mm - self.esp32.get_distance(),1)
     
     def get_home_successful(self):
         return self.com.requestBit(self.cartAxle, 4600, 7)
