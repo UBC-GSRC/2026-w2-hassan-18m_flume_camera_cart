@@ -11,7 +11,7 @@ import subprocess
 import ESP32SerialController
 
 class CameraCart:
-    def __init__(self, ip = '192.168.100.94'):
+    def __init__(self, ip = '192.168.100.94', sensor_offset_mm = 794.5):
         # TODO: Add error handling for connection issues
         self.cartController = Controller(ip)
         self.cartAxle = Axis(ip, 0, "cart") 
@@ -36,7 +36,7 @@ class CameraCart:
         self.encoder_scale_factor = 0.0034
 
         self.esp32 = ESP32SerialController.ESP32SerialController('COM3')
-        self.sensor_offset_mm = 794.5 # mm from the bedrock of the flume
+        self.sensor_offset_mm = sensor_offset_mm # mm from the bedrock of the flume
 
     def capture_images_wireless(self):
         return self.esp32.trigger_camera()

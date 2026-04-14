@@ -10,8 +10,8 @@ from pathlib import Path
 import sys
 
 
-BEDSCAN_DISTANCE_MM = 100 # Distance to move the cart for a bed scan in mm. Max length is 14800
-BEDSCAN_STEP_SIZE_MM = 25 # Distance to move the cart between each photo in mm. Suggested step size is 140
+BEDSCAN_DISTANCE_MM = 14800 # Distance to move the cart for a bed scan in mm. Max length is 14800
+BEDSCAN_STEP_SIZE_MM = 140 # Distance to move the cart between each photo in mm. Suggested step size is 140
 
 def prompt_directory()-> Path:
     """
@@ -56,49 +56,20 @@ def bedscan_procedure(maximum_distance: int, step_size:int, cart:CameraCart.Came
     
     # cart.get_camera_count()
 
-    # cart.jog_absolute(0) # Ensure starting at home position
+    cart.jog_absolute(0) # Ensure starting at home position
 
     locations = list(range(0, maximum_distance, step_size))
     locations.append(maximum_distance) # Ensure the final position is included
 
     for location in locations:
         print(f"Moving to {location} mm\n")
-        # cart.jog_absolute(location, blocking=True)
-        cart.jog_relative(location, blocking=True)
+        cart.jog_absolute(location, blocking=True)
         print(f"Capturing image at {location} mm\n")
         print(f"Image captured: {cart.capture_images_wireless()}")
         # cart.capture_images(cart.path_images) # TODO: confirm that this is blocking 
 
     print("Bed scan complete. Returning to home position.")
-    # cart.jog_absolute(0) # Return near home position after scan
-
-def water_height_procedure(maximum_distance: int, step_size:int, cart:CameraCart.CameraCart):
-    """
-    Perform a water height scan by moving the cart and measuring water height at each step.
-    
-    Args:
-    maximum_distance (int): The total distance to move the cart.
-    step_size (int): The distance to move the cart between each measurement.
-    cart (CameraCart.CameraCart): The camera cart instance.
-    """
-    if cart.get_home_status() == False:
-        raise Exception("Camera cart has not been homed. Please home the cart before starting the water height scan.")
-    
-    locations = list(range(0, maximum_distance, step_size))
-    locations.append(maximum_distance) # Ensure the final position is included
-    heights = []
-    get_position = []
-    for location in locations:
-        print(f"Moving to {location} mm\n")
-        # cart.jog_absolute(location, blocking=True)
-        cart.jog_relative(location, blocking=True)
-        print(f"Measuring water height at {location} mm\n")
-        water_height = cart.get_water_level()
-        print(f"Water height at {location} mm: {water_height} mm\n")
-        heights.append(water_height)
-        get_position.append(cart.get_position()[1])
-
-    return locations, heights, get_position
+    cart.jog_absolute(0) # Return near home position after scan
 
 @time_elapsed
 def main():
@@ -112,10 +83,6 @@ def main():
     #     print("No need to explicitly home. Moving to first target location.")
 
     bedscan_procedure(BEDSCAN_DISTANCE_MM, BEDSCAN_STEP_SIZE_MM, cart)
-    locations, heights, positions = water_height_procedure(BEDSCAN_DISTANCE_MM, BEDSCAN_STEP_SIZE_MM, cart)
-    print("Locations (mm): ", locations)
-    print("Heights (mm): ", heights)
-    print("Positions (mm): ", positions)
 
 if __name__ == "__main__":
     main()
