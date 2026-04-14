@@ -25,6 +25,10 @@ class ESP32SerialController:
         except serial.SerialException as e:
             print(f"Error opening serial port: {e}")
 
+    def __del__(self):
+        if self.port is not None:
+            self.port.close()
+
     def trigger_camera(self)->bool:
         self.port.reset_input_buffer()
 
@@ -43,7 +47,7 @@ class ESP32SerialController:
             print(f"Received bytes: {res_bytes}")
             return -1
         
-        time.sleep(0.1)
+        time.sleep(1) 
 
         return camera_triggered # return the camera trigger acknowledgement from the data_bridge
     
