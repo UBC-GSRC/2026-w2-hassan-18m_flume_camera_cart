@@ -10,8 +10,8 @@ from pathlib import Path
 import sys
 
 
-BEDSCAN_DISTANCE_MM = 400 # Distance to move the cart for a bed scan in mm. Max length is 14800
-BEDSCAN_STEP_SIZE_MM = 90 # Distance to move the cart between each photo in mm. Suggested step size is 140
+BEDSCAN_DISTANCE_MM = 100 # Distance to move the cart for a bed scan in mm. Max length is 14800
+BEDSCAN_STEP_SIZE_MM = 25 # Distance to move the cart between each photo in mm. Suggested step size is 140
 
 def prompt_directory()-> Path:
     """
@@ -87,6 +87,7 @@ def water_height_procedure(maximum_distance: int, step_size:int, cart:CameraCart
     locations = list(range(0, maximum_distance, step_size))
     locations.append(maximum_distance) # Ensure the final position is included
     heights = []
+    get_position = []
     for location in locations:
         print(f"Moving to {location} mm\n")
         # cart.jog_absolute(location, blocking=True)
@@ -95,24 +96,26 @@ def water_height_procedure(maximum_distance: int, step_size:int, cart:CameraCart
         water_height = cart.get_water_level()
         print(f"Water height at {location} mm: {water_height} mm\n")
         heights.append(water_height)
+        get_position.append(cart.get_position()[1])
 
-    return locations, heights
+    return locations, heights, get_position
 
 @time_elapsed
 def main():
-    dir = prompt_directory()
+    # dir = prompt_directory()
     cart = CameraCart.CameraCart()
     # cart.set_images_path(dir)
 
-    if not cart.get_home_successful():
-        cart.home()
-    else:
-        print("No need to explicitly home. Moving to first target location.")
+    # if not cart.get_home_successful():
+    #     cart.home()
+    # else:
+    #     print("No need to explicitly home. Moving to first target location.")
 
     bedscan_procedure(BEDSCAN_DISTANCE_MM, BEDSCAN_STEP_SIZE_MM, cart)
-    locations, heights = water_height_procedure(BEDSCAN_DISTANCE_MM, BEDSCAN_STEP_SIZE_MM, cart)
+    locations, heights, positions = water_height_procedure(BEDSCAN_DISTANCE_MM, BEDSCAN_STEP_SIZE_MM, cart)
     print("Locations (mm): ", locations)
     print("Heights (mm): ", heights)
+    print("Positions (mm): ", positions)
 
 if __name__ == "__main__":
     main()
