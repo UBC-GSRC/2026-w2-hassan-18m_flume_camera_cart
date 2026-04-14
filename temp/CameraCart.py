@@ -85,8 +85,9 @@ class CameraCart:
         time.sleep(2) # allow the controller to receive the message before moving forward. TODO: Involve a handshake here
 
 
-        while self.get_moving_status():
-            time.sleep(1)
+        if blocking:
+            while self.get_moving_status():
+                time.sleep(1)
 
     def get_moving_status(self):
         # Commented code is from other script. Maybe that is the one that works... try this if blocking doesn't work

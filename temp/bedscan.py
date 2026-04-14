@@ -10,7 +10,7 @@ from pathlib import Path
 import sys
 
 
-BEDSCAN_DISTANCE_MM = 14800 # Distance to move the cart for a bed scan in mm. Max length is 14800
+BEDSCAN_DISTANCE_MM = 14600 # Distance to move the cart for a bed scan in mm. Max length is 14600
 BEDSCAN_STEP_SIZE_MM = 140 # Distance to move the cart between each photo in mm. Suggested step size is 140
 
 def prompt_directory()-> Path:
@@ -69,7 +69,7 @@ def bedscan_procedure(maximum_distance: int, step_size:int, cart:CameraCart.Came
         # cart.capture_images(cart.path_images) # TODO: confirm that this is blocking 
 
     print("Bed scan complete. Returning to home position.")
-    cart.jog_absolute(0) # Return near home position after scan
+    cart.jog_absolute(0, blocking=False) # Return near home position after scan
 
 @time_elapsed
 def main():

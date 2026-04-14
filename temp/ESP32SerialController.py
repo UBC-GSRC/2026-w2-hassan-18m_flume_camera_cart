@@ -22,6 +22,7 @@ class ESP32SerialController:
         try:
             self.port = serial.Serial(com, baudrate=115200, timeout=1)
             self.port.open()
+            print("Successfully opened port")
         except serial.SerialException as e:
             print(f"Error opening serial port: {e}")
 

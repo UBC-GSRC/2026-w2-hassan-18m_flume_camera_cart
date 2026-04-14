@@ -10,8 +10,9 @@ from pathlib import Path
 import sys
 import csv
 import matplotlib.pyplot as plt
+import threading
 
-BEDSCAN_DISTANCE_MM = 14800 # Distance to move the cart for a bed scan in mm. Max length is 14800
+BEDSCAN_DISTANCE_MM = 14600 # Distance to move the cart for a bed scan in mm. Max length is 14600
 BEDSCAN_STEP_SIZE_MM = 140 # Distance to move the cart between each photo in mm. Suggested step size is 140
 
 def time_elapsed(func):
@@ -26,62 +27,98 @@ def time_elapsed(func):
         return result
     return wrapper
 
-def water_height_procedure(maximum_distance: int, step_size:int, cart:CameraCart.CameraCart):
-    """
-    Perform a water height scan by moving the cart and measuring water height at each step.
-    
-    Args:
-    maximum_distance (int): The total distance to move the cart.
-    step_size (int): The distance to move the cart between each measurement.
-    cart (CameraCart.CameraCart): The camera cart instance.
-    """
-    if cart.get_home_status() == False:
-        raise Exception("Camera cart has not been homed. Please home the cart before starting the water height scan.")
-    
-    locations = list(range(0, maximum_distance, step_size))
-    locations.append(maximum_distance) # Ensure the final position is included
-    heights = []
-    get_position = []
-    for location in locations:
-        print(f"Moving to {location} mm\n")
-        cart.jog_absolute(location, blocking=True)
-        print(f"Measuring water height at {location} mm\n")
-        water_height = cart.get_water_level()
-        print(f"Water height at {location} mm: {water_height} mm\n")
-        heights.append(water_height)
-        get_position.append(cart.get_position()[1])
+class WaterLevelScanner:
+    def __init__ (self,):
+        self.bedscan_distance = BEDSCAN_DISTANCE_MM
+        self.bedscan_step_size = BEDSCAN_STEP_SIZE_MM
+        self.cart = CameraCart.CameraCart(sensor_offset_mm=794.5)
+        self.heights = []
+        self.positions = []
+        self.stop_thread = threading.Event()
 
-    print("Water height scan complete. Returning to home position.")
-    cart.jog_absolute(0, blocking=False) # return near home
+    def water_height_procedure_steps(self):
+        """
+        Perform a water height scan by moving the cart and measuring water height at each step.
+        """
+        if self.cart.get_home_status() == False:
+            raise Exception("Camera cart has not been homed. Please home the cart before starting the water height scan.")
+        
+        locations = list(range(0, self.bedscan_distance, self.bedscan_step_size))
+        locations.append(self.bedscan_distance) # Ensure the final position is included
+        heights = []
+        positions = []
+        for location in locations:
+            print(f"Moving to {location} mm\n")
+            self.cart.jog_absolute(location, blocking=True)
+            print(f"Measuring water height at {location} mm\n")
+            water_height = self.cart.get_water_level()
+            print(f"Water height at {location} mm: {water_height} mm\n")
+            self.heights.append(water_height)
+            self.positions.append(self.cart.get_position()[1])
 
-    return heights, get_position
+        print("Water height scan complete. Returning to home position.")
+        self.cart.jog_absolute(0, blocking=False) # return near home
 
-def write_csv(heights, positions):
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
-    with open('water_scan_' + timestamp + '.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['water_height', 'Cart Position (mm)'])
-        for height, pos in zip(heights, positions):
-            writer.writerow([height, pos])
+        return self.heights, self.positions
 
-def graph_heights(locations, heights):
-    plt.figure(figsize=(10, 5))
-    plt.plot(locations, heights / 1000, marker='o')
-    plt.title('Water Height Scan')
-    plt.xlabel('Cart Position (m)')
-    plt.ylabel('Water Height (mm)')
-    plt.grid()
-    plt.show()
+    def water_height_procedure_rapid(self):
+        # Ensure starting at home position
+        self.cart.jog_absolute(0)
+
+        # Start a thread to record the distance and height data 
+        record_thread = threading.Thread(target=self.record_data_constant, args=(self.stop_thread,))
+        record_thread.start()
+        self.cart.jog_absolute(self.bedscan_distance, blocking=True)
+        self.stop_thread.set() # signal the recording thread to stop after movement is complete
+        record_thread.join()
+
+        # Go back home after scan
+        print("Water height scan complete. Returning to home position.")
+        self.cart.jog_absolute(0, blocking=False)
+
+        return self.heights, self.positions
+
+    def record_data_constant(self, stop_event):
+        while stop_event.is_set() == False:
+            pos = self.cart.get_position()[1]
+            height = self.cart.get_water_level()
+
+            self.positions.append(pos)
+            self.heights.append(height)
+            time.sleep(0.05)
+
+    def write_csv(self):
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        with open('water_height_scan_' + timestamp + '.csv', mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(['water_height_mm', 'position_mm'])
+            for height, pos in zip(self.heights, self.positions):
+                writer.writerow([height, pos])
+
+        print("Wrote data to water_height_scan_" + timestamp + ".csv")
+
+    def graph_heights(self):
+        plt.figure(figsize=(10, 5))
+        plt.ylim((-10, max((max(self.heights) + 10, 500))))
+        plt.plot(self.positions, self.heights, marker='o')
+        plt.title('Water Height Scan')
+        plt.xlabel('Cart Position (mm)')
+        plt.ylabel('Water Height (mm)')
+        plt.grid()
+        plt.show()
 
 @time_elapsed
 def main():
-    cart = CameraCart.CameraCart(sensor_offset_mm=794.5)
+    water_scanner = WaterLevelScanner()
 
-    heights, positions = water_height_procedure(BEDSCAN_DISTANCE_MM, BEDSCAN_STEP_SIZE_MM, cart)
-    print("Heights (mm): ", heights)
-    print("Positions (mm): ", positions)
+    # Option 1: Scanning without stopping 
+    heights, positions = water_scanner.water_height_procedure_rapid()
 
-    graph_heights(positions, heights)
+    # Option 2: Scanning with stopping at each step defined in the top of the file
+    # heights, positions = water_scanner.water_height_procedure_steps()
+
+    water_scanner.write_csv()
+    water_scanner.graph_heights()
 
 if __name__ == "__main__":
     main()
