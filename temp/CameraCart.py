@@ -79,7 +79,7 @@ class CameraCart:
 
     def jog_absolute(self, value:int, blocking = True):
         if not self.get_home_successful():
-            raise Exception("The cart has NOT been homed. Do not use absolute reference frame without successfully homing to ensure an expected coordinate system.")
+            raise Exception("The cart has NOT been homed. Do not use absolute reference frame without successfully homing to ensure an expected coordinate system. \n Go into ACR-VIEW and move the cart home. After, open 'Terminal Emulator'. Send the commands in order without the commas: PROG0, REN, RES X1")
         
         self.com.move(self.cartAxle,value, Movement='a')
         time.sleep(2) # allow the controller to receive the message before moving forward. TODO: Involve a handshake here
