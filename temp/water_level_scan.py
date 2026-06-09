@@ -12,7 +12,7 @@ import csv
 import matplotlib.pyplot as plt
 import threading
 
-BEDSCAN_DISTANCE_MM = 14600 # Distance to move the cart for a bed scan in mm. Max length is 14600
+BEDSCAN_DISTANCE_MM = 14400 # Distance to move the cart for a bed scan in mm. Max length is 14600
 BEDSCAN_STEP_SIZE_MM = 140 # Distance to move the cart between each photo in mm. Suggested step size is 140
 
 def time_elapsed(func):
@@ -73,7 +73,7 @@ class WaterLevelScanner:
         record_thread.join()
 
         # Go back home after scan
-        print("Water height scan complete. Returning to home position.")
+        print("Water height scan complete.")
         self.cart.jog_absolute(0, blocking=False)
 
         return self.heights, self.positions
@@ -82,6 +82,11 @@ class WaterLevelScanner:
         while stop_event.is_set() == False:
             pos = self.cart.get_position()[1]
             height = self.cart.get_water_level()
+
+            if pos > self.bedscan_distance + 500: # if the cart goes too far, stop the scan to prevent damage to the cart and flume
+                self.cart.kill_all_motions()
+                print("Cart has seen an error which says it's past the maximum distance limit. Repeat the water scan.")
+                sys.exit()
 
             self.positions.append(pos)
             self.heights.append(height)
