@@ -111,7 +111,10 @@ class CameraCart:
             time.sleep(1)
 
     def kill_all_motions(self):
-        pass
+        print("Killing all motions.")
+
+        self.com.setBit(self.cartAxle, 522)
+
 
     def get_position(self):
         """
