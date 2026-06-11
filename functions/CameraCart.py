@@ -78,7 +78,7 @@ class CameraCart:
                 time.sleep(1)
 
     def jog_absolute(self, value:int, blocking = True):
-        if not self.get_home_successful():
+        if not self.homed:
             raise Exception("The cart has NOT been homed. Do not use absolute reference frame without successfully homing to ensure an expected coordinate system. \n Go into ACR-VIEW and move the cart home. After, open 'Terminal Emulator'. Send the commands in order without the commas: PROG0, REN, RES X1")
         
         self.com.move(self.cartAxle,value, Movement='a')
@@ -101,14 +101,15 @@ class CameraCart:
     def get_home_status(self):
         pass
 
-    def home(self):
-        self.com.setBit(self.cartAxle, 17161) # home is in the negative direction
-        self.com.setBit(self.cartAxle, 17160)                                   # jog home
-        print("Homing the camera cart.\n")
+    ## Should not be homed via software as commanding the homing velocity has not been figured out.
+    # def home(self):
+    #     self.com.setBit(self.cartAxle, 17161) # home is in the negative direction
+    #     self.com.setBit(self.cartAxle, 17160)                                   # jog home
+    #     print("Homing the camera cart.\n")
 
-        # Blocks until homed
-        while self.get_home_successful() == 0:                                              # wait till card is in home position
-            time.sleep(1)
+    #     # Blocks until homed
+    #     while self.get_home_successful() == 0:                                              # wait till card is in home position
+    #         time.sleep(1)
 
     def kill_all_motions(self):
         print("Killing all motions.")
@@ -120,7 +121,8 @@ class CameraCart:
         """
         Get position of the cart in mm.
         """
-        encoder_position = self.com.requestParameter(self.cartAxle, 6144)[1] 
+        # encoder_position = self.com.requestParameter(self.cartAxle, 6144)[1] # parameter for 'Position Encoder'
+        encoder_position = self.com.requestParameter(self.cartAxle, 12290)[1] # parameter for 'Actual position Axis0'
         query_time = self.com.requestParameter(self.cartAxle, 6916)[1]
         actual_position_scaled = round(encoder_position * self.encoder_scale_factor, 2)          # read out if cart is moving position
 
@@ -141,5 +143,10 @@ def main():
     t2, position2 = cc.get_position()
     print(f'Time:{t2 - t1} Position:{position2}')
 
+    idx, val = cc.com.requestParameter(cc.cartAxle, 12290)
+    print(f"Index: {idx} Value: {val}")
+    
+    idx, val = cc.com.requestParameter(cc.cartAxle, 12288)
+    print(f"Index: {idx} Value: {val}")
 if __name__ == "__main__":
     main()
