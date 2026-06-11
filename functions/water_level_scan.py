@@ -74,6 +74,8 @@ class WaterLevelScanner:
 
         # Go back home after scan
         print("Water height scan complete.")
+        time.sleep(1)
+        print("Returning to home position.")
         self.cart.jog_absolute(0, blocking=False)
 
         return self.heights, self.positions
