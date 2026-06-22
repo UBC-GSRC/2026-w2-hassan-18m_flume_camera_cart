@@ -51,7 +51,7 @@ class CameraCart:
                     timeout_flag.set()
                     stop_flag.set()
                 
-                time.sleep(0.2)
+                time.sleep(0.01)
 
         stop_event = threading.Event()
         timeout_event = threading.Event()
