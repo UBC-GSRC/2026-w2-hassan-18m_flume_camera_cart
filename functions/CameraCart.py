@@ -9,6 +9,7 @@ from BinaryCommunication import BinaryCommunication
 import time
 import subprocess
 import ESP32SerialController
+import threading
 
 class CameraCart:
     def __init__(self, ip = '192.168.100.94', sensor_offset_mm = 794.5):
@@ -42,7 +43,30 @@ class CameraCart:
         return self.esp32.trigger_camera()
 
     def get_water_level(self):
-        return round(self.sensor_offset_mm - self.esp32.get_distance(),1)
+        def thread_timeout(stop_flag, timeout_flag, max_time_s = 5):
+            start_time = time.time()
+
+            while stop_flag.is_set() == False:
+                if time.time() - start_time > max_time_s:
+                    timeout_flag.set()
+                    stop_flag.set()
+                
+                time.sleep(0.2)
+
+        stop_event = threading.Event()
+        timeout_event = threading.Event()
+        max_time_s = 1.5
+
+        th = threading.Thread(target=thread_timeout, args=(stop_event, timeout_event, max_time_s))
+        th.start()
+        water_level = round(self.sensor_offset_mm - self.esp32.get_distance(),1)
+        stop_event.set()
+        th.join()
+
+        if timeout_event.is_set():
+            return -1
+
+        return water_level
     
     def get_home_successful(self):
         return self.com.requestBit(self.cartAxle, 4600, 7)

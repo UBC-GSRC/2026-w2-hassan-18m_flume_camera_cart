@@ -35,6 +35,8 @@ class WaterLevelScanner:
         self.heights = []
         self.positions = []
         self.stop_thread = threading.Event()
+        self.error_distance = threading.Event()
+        self.error_timeout = threading.Event()
 
     def water_height_procedure_steps(self):
         """
@@ -62,34 +64,51 @@ class WaterLevelScanner:
         return self.heights, self.positions
 
     def water_height_procedure_rapid(self):
-        # Ensure starting at home position
-        self.cart.jog_absolute(0)
-
         # Start a thread to record the distance and height data 
-        record_thread = threading.Thread(target=self.record_data_constant, args=(self.stop_thread,))
+        record_thread = threading.Thread(target=self.record_data_constant, args=(self.stop_thread,self.error_distance, self.error_timeout))
         record_thread.start()
         self.cart.jog_absolute(self.bedscan_distance, blocking=True)
         self.stop_thread.set() # signal the recording thread to stop after movement is complete
         record_thread.join()
 
         # Go back home after scan
-        print("Water height scan complete.")
-        time.sleep(1)
-        print("Returning to home position.")
-        self.cart.jog_absolute(0, blocking=False)
+
+        if self.error_distance.is_set() == False and self.error_timeout.is_set() == False:
+            print("Water height scan complete.")
+            time.sleep(1)
+            print("Returning to home position.")
+            self.cart.jog_absolute(0, blocking=False)
+        else:
+            print("Error! Read the terminal to see how to respond. Rerun the script. If the next scan is successful, combine the two files together to get a complete scan.")
 
         return self.heights, self.positions
 
-    def record_data_constant(self, stop_event):
+    def record_data_constant(self, stop_event, error_distance, error_timeout):
+        false_position_count = 0
         while stop_event.is_set() == False:
             pos = self.cart.get_position()[1]
+
+            # Check if it's taking forever to get the distance reading
             height = self.cart.get_water_level()
 
-            if pos > self.bedscan_distance + 500: # if the cart goes too far, stop the scan to prevent damage to the cart and flume
+            if height == -1:
+                print("ESP32 Timeout Error: Stopping cart. Restart the distance sensor power switch and rerun.")
                 self.cart.kill_all_motions()
-                print("Cart has seen an error which says it's past the maximum distance limit. Repeat the water scan.")
-                sys.exit()
+                stop_event.set()
+                error_timeout.set()
 
+            if pos > self.bedscan_distance + 500: # The wrong encoder position can sometimes be read which causes poor data. Skip these.
+                false_position_count += 1
+                if false_position_count >= 10:
+                    print("Too many false positions detected. Exiting. Please try again.")
+                    self.cart.kill_all_motions()
+                    stop_event.set()
+                    error_distance.set()
+                print("\nCart has seen an error which says it's past the maximum distance limit. Skipping reading.")
+                print("False Position: {:.2f} mm\n".format(pos))
+                continue
+            
+            print("Position: {:.2f} mm, Water Height: {:.2f} mm".format(pos, height))
             self.positions.append(pos)
             self.heights.append(height)
             time.sleep(0.05)
@@ -119,6 +138,8 @@ def main():
     water_scanner = WaterLevelScanner()
 
     # Option 1: Scanning without stopping 
+    # Ensure starting at home position
+    # water_scanner.cart.jog_absolute(0)
     heights, positions = water_scanner.water_height_procedure_rapid()
 
     # Option 2: Scanning with stopping at each step defined in the top of the file

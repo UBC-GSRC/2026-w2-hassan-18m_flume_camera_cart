@@ -20,7 +20,7 @@ class ESP32SerialController:
         self.buffer_size = 1024 
         
         try:
-            self.port = serial.Serial(com, baudrate=115200, timeout=1)
+            self.port = serial.Serial(com, baudrate=115200, timeout=None)
             self.port.open()
             print("Successfully opened port")
         except serial.SerialException as e:
