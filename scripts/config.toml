@@ -1,0 +1,90 @@
+# Config file for areas of interest
+
+# Names are a bit confusing for now as the water travels from 14500 to 0 but
+# making increasing values is a bit odd.
+
+# Positions are in mm
+
+[directories]
+water_scans = "./data/Water_level_scans"
+dry_scans = "./data/Dry_level_scans"
+
+[[roi]]
+name = "whole"
+start = 0
+end = 14800
+
+[[roi]]
+name = "narrow1"
+start = 0
+end = 2000
+
+[[roi]]
+name = "narrowing1"
+start = 2000
+end = 2250
+
+[[roi]]
+name = "wide1"
+start = 2250
+end = 3750
+
+[[roi]]
+name = "widening1"
+start = 3750
+end = 4000
+
+[[roi]]
+name = "narrow2"
+start = 4000
+end = 6000
+
+[[roi]]
+name = "narrowing2"
+start = 6000
+end = 6250
+
+[[roi]]
+name = "wide2"
+start = 6250
+end = 7750
+
+[[roi]]
+name = "widening2"
+start = 7750
+end = 8000
+
+[[roi]]
+name = "narrow3"
+start = 8000
+end = 10000
+
+[[roi]]
+name = "narrowing3"
+start = 10000
+end = 10250
+
+[[roi]]
+name = "wide3"
+start = 10250
+end = 11750
+
+[[roi]]
+name = "widening3"
+start = 11750
+end = 12000
+
+[[roi]]
+name = "narrow4"
+start = 12000
+end = 14000
+
+[[roi]]
+name = "narrowing4"
+start = 14000
+end = 14250
+
+[[roi]]
+name = "wide4"
+start = 14250
+end = 14500
