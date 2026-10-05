@@ -12,9 +12,10 @@ import sys
 import csv
 import matplotlib.pyplot as plt
 import threading
+import pandas as pd
 from URM14 import URM14
 
-BEDSCAN_DISTANCE_MM = 14400 # Distance to move the cart for a bed scan in mm. Max length is 14600
+BEDSCAN_DISTANCE_MM = 1000 # Distance to move the cart for a bed scan in mm. Max length is 14600
 BEDSCAN_STEP_SIZE_MM = 140 # Distance to move the cart between each photo in mm. Suggested step size is 140
 
 def time_elapsed(func):
@@ -30,10 +31,10 @@ def time_elapsed(func):
     return wrapper
 
 class SurfaceHeightScanner:
-    def __init__ (self,):
+    def __init__ (self, cart_ip='192.168.100.94', esp32_port = "COM7"):
         self.bedscan_distance = BEDSCAN_DISTANCE_MM
         self.bedscan_step_size = BEDSCAN_STEP_SIZE_MM
-        self.cart = CameraCart.CameraCart()
+        self.cart = CameraCart.CameraCart(cart_ip, esp32_port)
         self.heights = []
         self.sensor_ids = []
         self.positions = []
@@ -113,7 +114,7 @@ class SurfaceHeightScanner:
                 print("Position: {:.2f} mm, Water Height: {:.2f} mm, Sensor ID: {}".format(pos, height, urm14.sensor_id))
                 self.positions.append(pos)
                 self.heights.append(height)
-                self.ids.append(urm14.sensor_id)
+                self.sensor_ids.append(urm14.sensor_id)
 
     def write_csv(self):
         timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -126,23 +127,26 @@ class SurfaceHeightScanner:
         print("Wrote data to water_height_scan_" + timestamp + ".csv")
 
     def graph_heights(self):
+        df = pd.DataFrame({"sensor_id": self.sensor_ids, "position_mm": self.positions, "surface_height_mm": self.heights})
         plt.figure(figsize=(10, 5))
         plt.ylim((-10, max((max(self.heights) + 10, 500))))
-        plt.plot(self.positions, self.heights, marker='o')
-        plt.title('Water Height Scan')
-        plt.xlabel('Cart Position (mm)')
+        for sensor_id, group in df.groupby("sensor_id"):
+            plt.plot(group["position_mm"], group["surface_height_mm"], marker='o', label = sensor_id)
+        plt.title('Surface Height Scan')
+        plt.xlabel('Upstream Cart Position (mm)')
         plt.ylabel('Water Height (mm)')
+        plt.legend(title="Sensor ID")
         plt.grid()
         plt.show()
 
 @time_elapsed
 def main():
-    urm14_1 = URM14(offset_x_mm = 10.0, offset_y_mm = 10.0, offset_z_mm = 100)
-    urm14_2 = URM14(offset_x_mm = 10.0, offset_y_mm = 20.0, offset_z_mm = 100)
-    urm14_3 = URM14(offset_x_mm = 10.0, offset_y_mm = 30.0, offset_z_mm = 100)
-    urm14_4 = URM14(offset_x_mm = 10.0, offset_y_mm = 40.0, offset_z_mm = 100)
+    urm14_1 = URM14(offset_x_mm = 10.0, offset_y_mm = 10.0, offset_z_mm = 700, sensor_id = 1)
+    urm14_2 = URM14(offset_x_mm = 10.0, offset_y_mm = 20.0, offset_z_mm = 600, sensor_id = 2)
+    urm14_3 = URM14(offset_x_mm = 10.0, offset_y_mm = 30.0, offset_z_mm = 500, sensor_id = 3)
+    urm14_4 = URM14(offset_x_mm = 10.0, offset_y_mm = 40.0, offset_z_mm = 400, sensor_id = 4)
     
-    surface_scanner = SurfaceHeightScanner()
+    surface_scanner = SurfaceHeightScanner(cart_ip='192.168.100.94',esp32_port="COM7")
 
     surface_scanner.cart.add_urm14(urm14_1)
     surface_scanner.cart.add_urm14(urm14_2)
