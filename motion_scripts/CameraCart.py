@@ -3,16 +3,17 @@ Author: Adam Fong
 Date: 2025-08-20
 Description: This module defines the CameraCart class, which provides simple abstractions to allow for the camera cart to be controlled.
 """
-from Network import Axis
-from Network import Controller
-from BinaryCommunication import BinaryCommunication
+from parker_hannifin_binary_communication.BinaryCommunication import BinaryCommunication
+from parker_hannifin_binary_communication.Network import Controller
+from parker_hannifin_binary_communication.Network import Axis
 import time
 import subprocess
-import ESP32SerialController
+from data_bridge_controller import ESP32DataBridgeController
 import threading
+from URM14 import URM14
 
 class CameraCart:
-    def __init__(self, ip = '192.168.100.94', sensor_offset_mm = 794.5):
+    def __init__(self, ip = '192.168.100.94'):
         # TODO: Add error handling for connection issues
         self.cartController = Controller(ip)
         self.cartAxle = Axis(ip, 0, "cart") 
@@ -21,13 +22,6 @@ class CameraCart:
 
         self.com.connect(self.cartController)
         self.com.enableDrive(self.cartAxle)
-
-        # Camera control variables
-        # self.WMI = wmi.WMI() #establishes connection with "Windows Management Instrumentation" 
-        # self.wql = "Select * From Win32_USBControllerDevice" #query to search for anything that is a USB device
-        # self.digicam_path = "C:\Program Files (x86)\digiCamControl\CameraControlCmd.exe"  #Path to the CameraControlCmd.exe file needed to trigger photos
-        # self.camera = cart_control.Cart('192.168.100.94', 5006) #sets the IP andy port needed to connect to the cart
-        # self.camera_connect()
         
         # Check if camera cart has already been homed 
         self.homed = self.get_home_successful()
@@ -36,13 +30,27 @@ class CameraCart:
         # The conversion factor to get between encoder position and actual position scaled
         self.encoder_scale_factor = 0.0034
 
-        self.esp32 = ESP32SerialController.ESP32SerialController('COM3')
-        self.sensor_offset_mm = sensor_offset_mm # mm from the bedrock of the flume
+        self.esp32 = ESP32DataBridgeController('COM3')
+        self.distance_sensors = []
+
+    def add_urm14(self, urm14:URM14):
+        self.distance_sensors.append(urm14)
+
+    def read_all_urm14(self):
+        ids = []
+        distances = []
+        for urm14 in self.distance_sensors:
+            distance_mm = self.esp32.get_distance(urm14.sensor_id)
+
+            ids.append(urm14.sensor_id)
+            distances.append(distance_mm)
+
+        return ids, distances
 
     def capture_images_wireless(self):
         return self.esp32.trigger_camera()
 
-    def get_water_level(self):
+    def get_water_level(self, sensor_id = 1, z_offset_mm = 0.0):
         def thread_timeout(stop_flag, timeout_flag, max_time_s = 5):
             start_time = time.time()
 
@@ -53,13 +61,14 @@ class CameraCart:
                 
                 time.sleep(0.01)
 
+
         stop_event = threading.Event()
         timeout_event = threading.Event()
         max_time_s = 1.5
 
         th = threading.Thread(target=thread_timeout, args=(stop_event, timeout_event, max_time_s))
         th.start()
-        water_level = round(self.sensor_offset_mm - self.esp32.get_distance(),1)
+        water_level = round(z_offset_mm - self.esp32.get_distance(sensor_id),1)
         stop_event.set()
         th.join()
 
@@ -70,29 +79,6 @@ class CameraCart:
     
     def get_home_successful(self):
         return self.com.requestBit(self.cartAxle, 4600, 7)
-    
-    def capture_images(self,path):
-        out = subprocess.check_output(                      #sends code to windows command prompt
-            [self.digicam_path, "/folder", path, "/captureall"], #command to take picture
-            )
-        decoded = out.decode('utf-8')
-        responses_split = decoded.split('\r\n')
-        
-        for response in responses_split:
-            print(response) #prints the output of the command to the terminal so user can see if photos were taken
-
-    def get_camera_count(self):
-        camera_count = 0 
-        for item in self.WMI.query(self.wql):
-            if item.Dependent.Name == 'Canon EOS Rebel T6': #if device with correct camera name exists it updates the counter
-                camera_count += 1
-
-        print("{} Cameras Found".format(camera_count))
-        return camera_count
-    
-    def camera_connect(self):
-        print("Connecting cameras.")
-        self.camera.connect()
     
     def jog_relative(self, value: int, blocking = True):
         self.com.move(self.cartAxle, value, Movement='r')

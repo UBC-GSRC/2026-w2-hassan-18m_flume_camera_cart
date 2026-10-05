@@ -5,12 +5,14 @@ Description: This script is meant to provide a safe way to perform a water heigh
 """
 
 import CameraCart
+import URM14
 import time     
 from pathlib import Path
 import sys
 import csv
 import matplotlib.pyplot as plt
 import threading
+from URM14 import URM14
 
 BEDSCAN_DISTANCE_MM = 14400 # Distance to move the cart for a bed scan in mm. Max length is 14600
 BEDSCAN_STEP_SIZE_MM = 140 # Distance to move the cart between each photo in mm. Suggested step size is 140
@@ -27,12 +29,13 @@ def time_elapsed(func):
         return result
     return wrapper
 
-class WaterLevelScanner:
+class SurfaceHeightScanner:
     def __init__ (self,):
         self.bedscan_distance = BEDSCAN_DISTANCE_MM
         self.bedscan_step_size = BEDSCAN_STEP_SIZE_MM
-        self.cart = CameraCart.CameraCart(sensor_offset_mm=794.5)
+        self.cart = CameraCart.CameraCart()
         self.heights = []
+        self.sensor_ids = []
         self.positions = []
         self.stop_thread = threading.Event()
         self.error_distance = threading.Event()
@@ -81,45 +84,44 @@ class WaterLevelScanner:
         else:
             print("Error! Read the terminal to see how to respond. Rerun the script. If the next scan is successful, combine the two files together to get a complete scan.")
 
-        return self.heights, self.positions
-
     def record_data_constant(self, stop_event, error_distance, error_timeout):
         false_position_count = 0
         while stop_event.is_set() == False:
-            pos = self.cart.get_position()[1]
 
             # Check if it's taking forever to get the distance reading
-            height = self.cart.get_water_level()
+            for urm14 in self.cart.distance_sensors:
+                pos = self.cart.get_position()[1]
+                height = self.cart.get_water_level(urm14.sensor_id, urm14.offset_z_mm)
 
-            if height == -1:
-                print("ESP32 Timeout Error: Stopping cart. Restart the distance sensor power switch and rerun.")
-                self.cart.kill_all_motions()
-                stop_event.set()
-                error_timeout.set()
-
-            if pos > self.bedscan_distance + 500: # The wrong encoder position can sometimes be read which causes poor data. Skip these.
-                false_position_count += 1
-                if false_position_count >= 10:
-                    print("Too many false positions detected. Exiting. Please try again.")
+                if height == -1:
+                    print("ESP32 Timeout Error: Stopping cart. Restart the distance sensor power switch and rerun.")
                     self.cart.kill_all_motions()
                     stop_event.set()
-                    error_distance.set()
-                print("\nCart has seen an error which says it's past the maximum distance limit. Skipping reading.")
-                print("False Position: {:.2f} mm\n".format(pos))
-                continue
-            
-            print("Position: {:.2f} mm, Water Height: {:.2f} mm".format(pos, height))
-            self.positions.append(pos)
-            self.heights.append(height)
-            time.sleep(0.05)
+                    error_timeout.set()
+
+                if pos > self.bedscan_distance + 500: # The wrong encoder position can sometimes be read which causes poor data. Skip these.
+                    false_position_count += 1
+                    if false_position_count >= 10:
+                        print("Too many false positions detected. Exiting. Please try again.")
+                        self.cart.kill_all_motions()
+                        stop_event.set()
+                        error_distance.set()
+                    print("\nCart has seen an error which says it's past the maximum distance limit. Skipping reading.")
+                    print("False Position: {:.2f} mm\n".format(pos))
+                    continue
+                
+                print("Position: {:.2f} mm, Water Height: {:.2f} mm, Sensor ID: {}".format(pos, height, urm14.sensor_id))
+                self.positions.append(pos)
+                self.heights.append(height)
+                self.ids.append(urm14.sensor_id)
 
     def write_csv(self):
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         with open('water_height_scan_' + timestamp + '.csv', mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['water_height_mm', 'position_mm'])
-            for height, pos in zip(self.heights, self.positions):
-                writer.writerow([height, pos])
+            writer.writerow(['sensor_id', 'position_mm', 'surface_height_mm'])
+            for height, pos, sensor_id in zip(self.heights, self.positions, self.sensor_ids):
+                writer.writerow([sensor_id, pos, height])
 
         print("Wrote data to water_height_scan_" + timestamp + ".csv")
 
@@ -135,18 +137,28 @@ class WaterLevelScanner:
 
 @time_elapsed
 def main():
-    water_scanner = WaterLevelScanner()
+    urm14_1 = URM14(offset_x_mm = 10.0, offset_y_mm = 10.0, offset_z_mm = 100)
+    urm14_2 = URM14(offset_x_mm = 10.0, offset_y_mm = 20.0, offset_z_mm = 100)
+    urm14_3 = URM14(offset_x_mm = 10.0, offset_y_mm = 30.0, offset_z_mm = 100)
+    urm14_4 = URM14(offset_x_mm = 10.0, offset_y_mm = 40.0, offset_z_mm = 100)
+    
+    surface_scanner = SurfaceHeightScanner()
+
+    surface_scanner.cart.add_urm14(urm14_1)
+    surface_scanner.cart.add_urm14(urm14_2)
+    surface_scanner.cart.add_urm14(urm14_3)
+    surface_scanner.cart.add_urm14(urm14_4)
 
     # Option 1: Scanning without stopping 
     # Ensure starting at home position
     # water_scanner.cart.jog_absolute(0)
-    heights, positions = water_scanner.water_height_procedure_rapid()
+    surface_scanner.water_height_procedure_rapid()
 
     # Option 2: Scanning with stopping at each step defined in the top of the file
     # heights, positions = water_scanner.water_height_procedure_steps()
 
-    water_scanner.write_csv()
-    water_scanner.graph_heights()
+    surface_scanner.write_csv()
+    surface_scanner.graph_heights()
 
 if __name__ == "__main__":
     main()
