@@ -37,7 +37,8 @@ class SurfaceHeightScanner:
         self.cart = CameraCart.CameraCart(cart_ip, esp32_port)
         self.heights = []
         self.sensor_ids = []
-        self.positions = []
+        self.upstream_positions = []
+        self.cross_stream_positions = []
         self.stop_thread = threading.Event()
         self.error_distance = threading.Event()
         self.error_timeout = threading.Event()
@@ -60,12 +61,12 @@ class SurfaceHeightScanner:
             water_height = self.cart.get_water_level()
             print(f"Water height at {location} mm: {water_height} mm\n")
             self.heights.append(water_height)
-            self.positions.append(self.cart.get_position()[1])
+            self.upstream_positions.append(self.cart.get_position()[1])
 
         print("Water height scan complete. Returning to home position.")
         self.cart.jog_absolute(0, blocking=False) # return near home
 
-        return self.heights, self.positions
+        return self.heights, self.upstream_positions
 
     def water_height_procedure_rapid(self):
         # Start a thread to record the distance and height data 
@@ -112,30 +113,31 @@ class SurfaceHeightScanner:
                     continue
                 
                 print("Position: {:.2f} mm, Water Height: {:.2f} mm, Sensor ID: {}".format(pos, height, urm14.sensor_id))
-                self.positions.append(pos)
+                self.upstream_positions.append(pos)
                 self.heights.append(height)
                 self.sensor_ids.append(urm14.sensor_id)
+                self.cross_stream_positions.append(urm14.offset_y_mm)
 
     def write_csv(self):
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         with open('water_height_scan_' + timestamp + '.csv', mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['sensor_id', 'position_mm', 'surface_height_mm'])
-            for height, pos, sensor_id in zip(self.heights, self.positions, self.sensor_ids):
-                writer.writerow([sensor_id, pos, height])
+            writer.writerow(['sensor_id', 'upstream_x_mm', 'y_mm', 'surface_height_mm'])
+            for height, upstream_pos, sensor_id, cross_stream_pos in zip(self.heights, self.upstream_positions, self.sensor_ids, self.cross_stream_positions):
+                writer.writerow([sensor_id, upstream_pos, cross_stream_pos, height])
 
         print("Wrote data to water_height_scan_" + timestamp + ".csv")
 
     def graph_heights(self):
-        df = pd.DataFrame({"sensor_id": self.sensor_ids, "position_mm": self.positions, "surface_height_mm": self.heights})
+        df = pd.DataFrame({"sensor_id": self.sensor_ids, "position_mm": self.upstream_positions, "surface_height_mm": self.heights, "cross_stream_position_mm": self.cross_stream_positions})
         plt.figure(figsize=(10, 5))
         plt.ylim((-10, max((max(self.heights) + 10, 500))))
-        for sensor_id, group in df.groupby("sensor_id"):
-            plt.plot(group["position_mm"], group["surface_height_mm"], marker='o', label = sensor_id)
+        for cross_stream_position, group in df.groupby("cross_stream_position_mm"):
+            plt.plot(group["position_mm"], group["surface_height_mm"], marker='o', label = cross_stream_position)
         plt.title('Surface Height Scan')
         plt.xlabel('Upstream Cart Position (mm)')
         plt.ylabel('Water Height (mm)')
-        plt.legend(title="Sensor ID")
+        plt.legend(title="Cross Stream Position (Y)")
         plt.grid()
         plt.show()
 
