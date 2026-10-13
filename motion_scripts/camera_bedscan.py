@@ -66,7 +66,7 @@ def bedscan_procedure(maximum_distance: int, step_size:int, cart:CameraCart.Came
         cart.jog_absolute(location, blocking=True)
         print(f"Capturing image at {location} mm\n")
         print(f"Image captured: {cart.capture_images_wireless()}")
-        # cart.capture_images(cart.path_images) # TODO: confirm that this is blocking 
+        time.sleep(2) # Allow time for cameras to all autofocus. Reduce if needed 
 
     print("Bed scan complete. Returning to home position.")
     cart.jog_absolute(0, blocking=False) # Return near home position after scan
