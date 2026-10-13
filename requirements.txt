@@ -6,7 +6,7 @@ colorama==0.4.6
 contourpy==1.3.3
 cryptography==50.0.1
 cycler==0.12.1
--e git+https://github.com/UBC-GSRC/2026-w2-hassan-esp32_water_surface_level_scanner.git@325655b3ad1645a6fa17c109695957d18d67122b#egg=data_bridge_controller&subdirectory=data_bridge_controller
+-e git+https://github.com/UBC-GSRC/2026-w2-hassan-esp32_water_surface_level_scanner.git@fa811bb32d68d61d8161d9ca83b8079cf41b6836#egg=data_bridge_controller&subdirectory=data_bridge_controller
 -e git+https://github.com/UBC-GSRC/parker-hannifin-binary-communication.git@e15aaf7355ec75fb67d6fd38ac81364d7a12df87#egg=parker_hannifin_binary_communication&subdirectory=parker_hannifin_binary_communication
 esp-bool-parser==0.2.3
 esp_idf_panic_decoder==1.5.0

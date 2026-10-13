@@ -1,7 +1,7 @@
 
-from Network import Axis
-from Network import Controller
-from BinaryCommunication import BinaryCommunication
+from parker_hannifin_binary_communication.BinaryCommunication import BinaryCommunication
+from parker_hannifin_binary_communication.Network import Controller
+from parker_hannifin_binary_communication.Network import Axis
 import time
 
 cartController = Controller('192.168.100.94')
@@ -11,5 +11,5 @@ com = BinaryCommunication()
 com.connect(cartController)
 com.enableDrive(cartAxle)
 
-distance_mm = 2200
-com.move(cartAxle,distance_mm, Movement='r') # change movement to 'r' to be relative jogs. 'a' is absolute movement and only should be used after homing
+distance_mm = 100
+com.move(cartAxle,distance_mm, Movement='a') # change movement to 'r' to be relative jogs. 'a' is absolute movement and only should be used after homing

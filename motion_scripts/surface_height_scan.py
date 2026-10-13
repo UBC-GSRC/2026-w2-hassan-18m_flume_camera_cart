@@ -15,7 +15,7 @@ import threading
 import pandas as pd
 from URM14 import URM14
 
-BEDSCAN_DISTANCE_MM = 1000 # Distance to move the cart for a bed scan in mm. Max length is 14600
+BEDSCAN_DISTANCE_MM = 7500 # Distance to move the cart for a bed scan in mm. Max length is 14600
 BEDSCAN_STEP_SIZE_MM = 140 # Distance to move the cart between each photo in mm. Suggested step size is 140
 
 def time_elapsed(func):
@@ -42,6 +42,7 @@ class SurfaceHeightScanner:
         self.stop_thread = threading.Event()
         self.error_distance = threading.Event()
         self.error_timeout = threading.Event()
+        self.counter = 0
 
     def water_height_procedure_steps(self):
         """
@@ -93,8 +94,10 @@ class SurfaceHeightScanner:
             # Check if it's taking forever to get the distance reading
             for urm14 in self.cart.distance_sensors:
                 pos = self.cart.get_position()[1]
-                height = self.cart.get_water_level(urm14.sensor_id, urm14.offset_z_mm)
 
+                print("Get water level")
+                height = self.cart.get_water_level(urm14.sensor_id, urm14.offset_z_mm)
+                print("Water level received ")
                 if height == -1:
                     print("ESP32 Timeout Error: Stopping cart. Restart the distance sensor power switch and rerun.")
                     self.cart.kill_all_motions()
@@ -117,6 +120,9 @@ class SurfaceHeightScanner:
                 self.heights.append(height)
                 self.sensor_ids.append(urm14.sensor_id)
                 self.cross_stream_positions.append(urm14.offset_y_mm)
+                self.counter += 1
+                print(f"Counter: {self.counter}")
+                time.sleep(0.1)
 
     def write_csv(self):
         timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -143,10 +149,10 @@ class SurfaceHeightScanner:
 
 @time_elapsed
 def main():
-    urm14_1 = URM14(offset_x_mm = 10.0, offset_y_mm = 10.0, offset_z_mm = 700, sensor_id = 1)
-    urm14_2 = URM14(offset_x_mm = 10.0, offset_y_mm = 20.0, offset_z_mm = 600, sensor_id = 2)
-    urm14_3 = URM14(offset_x_mm = 10.0, offset_y_mm = 30.0, offset_z_mm = 500, sensor_id = 3)
-    urm14_4 = URM14(offset_x_mm = 10.0, offset_y_mm = 40.0, offset_z_mm = 400, sensor_id = 4)
+    urm14_1 = URM14(offset_x_mm = 100.0, offset_y_mm = 50.0, offset_z_mm = 820, sensor_id = 1)
+    urm14_2 = URM14(offset_x_mm = 10.0, offset_y_mm = 100.0, offset_z_mm = 820, sensor_id = 2)
+    urm14_3 = URM14(offset_x_mm = 10.0, offset_y_mm = 150.0, offset_z_mm = 820, sensor_id = 3)
+    urm14_4 = URM14(offset_x_mm = 10.0, offset_y_mm = 200.0, offset_z_mm = 820, sensor_id = 4)
     
     surface_scanner = SurfaceHeightScanner(cart_ip='192.168.100.94',esp32_port="COM7")
 
