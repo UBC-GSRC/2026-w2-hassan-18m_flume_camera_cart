@@ -30,7 +30,7 @@ class CameraCart:
         # The conversion factor to get between encoder position and actual position scaled
         self.encoder_scale_factor = 0.0034
 
-        self.esp32 = ESP32DataBridgeController('COM7')
+        self.esp32 = ESP32DataBridgeController(esp32_port)
         self.distance_sensors = []
 
     def add_urm14(self, urm14:URM14):
