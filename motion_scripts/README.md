@@ -31,7 +31,7 @@
 - Turn on the main power strip
 - Open `water_level_scan.py` in VSCode
 - click the 'play button' at the top right of the file in VSCode to run the script
-    - if you get an error, change the Python interpreter to be Python 3.14 
+    - if you get an error, change the Python interpreter to be in the virtual environment in the main directory (should be Python 3.14) 
 - The cart will move to the downstream position if it is not already there, then it will move in the upstream direction
 - You should see in the terminal that new distance data is being recorded
 - Once the cart reaches the end of the flume, it will open a quick graph of the data. When you close the graph, a csv file will be created with the data
